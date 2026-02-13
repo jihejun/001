@@ -513,6 +513,7 @@
             }
         }
         
+        // 【新增功能】自己的区域被炸后在自己的棋盘上显示标记
         function renderMyBoard(roomData) {
             const grid = document.getElementById('myGrid');
             grid.innerHTML = '';
@@ -522,6 +523,25 @@
                 for (let j = 0; j < 10; j++) {
                     const cell = document.createElement('div');
                     cell.className = 'cell';
+                    
+                    // ========== 新增：检测敌方攻击 ==========
+                    // 遍历所有敌人，看是否有攻击命中自己的这个格子
+                    let isHitByEnemy = false;
+                    let isHeadHit = false;
+                    
+                    for (let enemy = 1; enemy <= 3; enemy++) {
+                        if (enemy !== myPlayerNum) {  // 敌方玩家
+                            const attackKey = `${myPlayerNum}-${i}-${j}`;  // 注意格式：被攻击者-行-列
+                            const attack = roomData.attacks[attackKey];
+                            if (attack) {
+                                isHitByEnemy = true;
+                                isHeadHit = attack.head;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // 先显示自己的飞机
                     if (board[i][j] === 2) {
                         cell.classList.add('own-plane-head');
                         cell.textContent = '✈';
@@ -529,12 +549,70 @@
                         cell.classList.add('own-plane-body');
                         cell.textContent = '■';
                     }
+                    
+                    // 【新增】如果被敌方击中，覆盖显示击中标记
+                    if (isHitByEnemy) {
+                        // 清除原有的飞机样式和文字
+                        cell.className = 'cell';  // 重置class
+                        if (isHeadHit) {
+                            cell.classList.add('hit-head');
+                            cell.textContent = '💥';  // 机头被击中
+                        } else {
+                            cell.classList.add('hit-body');
+                            cell.textContent = '●';  // 机身被击中
+                        }
+                    }
+                    
                     grid.appendChild(cell);
                 }
             }
             document.getElementById('myPlanesLeft').innerText = `飞机: ${roomData.planes[myPlayerNum]}`;
         }
         
+        function renderEnemyBoard(roomData, playerNum) {
+            const grid = document.getElementById(`enemyGrid${playerNum}`);
+            if (!grid) return;
+            grid.innerHTML = '';
+            
+            for (let i = 0; i < 10; i++) {
+                for (let j = 0; j < 10; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    
+                    const key = `${playerNum}-${i}-${j}`;
+                    const attack = roomData.attacks[key];
+                    
+                    if (attack) {
+                        if (attack.hit) {
+                            if (attack.head) {
+                                cell.classList.add('hit-head');
+                                cell.textContent = '💥';
+                            } else {
+                                cell.classList.add('hit-body');
+                                cell.textContent = '●';
+                            }
+                        } else {
+                            cell.classList.add('miss');
+                            cell.textContent = '×';
+                        }
+                    } else {
+                        cell.classList.add('enemy-unknown');
+                    }
+                    
+                    if (isMyTurn(roomData) && 
+                        !roomData.eliminated[playerNum] && 
+                        window.selectedTarget === playerNum) {
+                        cell.classList.add('enemy-cell');
+                        cell.onclick = () => attackEnemy(playerNum, i, j);
+                    }
+                    
+                    grid.appendChild(cell);
+                }
+            }
+            
+            document.getElementById(`enemyPlanes${playerNum}`).innerText = `飞机: ${roomData.eliminated[playerNum] ? 0 : roomData.planes[playerNum]}`;
+            document.getElementById(`enemyTitle${playerNum}`).innerHTML = `👤 玩家${playerNum} ${roomData.eliminated[playerNum] ? '[已淘汰]' : ''}`;
+        }
         function renderEnemyBoard(roomData, playerNum) {
             const grid = document.getElementById(`enemyGrid${playerNum}`);
             if (!grid) return;
